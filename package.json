@@ -4,6 +4,7 @@
   "description": "Agent-maintained, agent-served bilingual news & deep-content aggregation platform",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
   "engines": {
     "node": ">=20"
   },

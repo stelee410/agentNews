@@ -6,14 +6,15 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ && rm -rf /var/lib/apt/lists/*
 
+# Pin pnpm via the package.json "packageManager" field. corepack must be
+# allowed to download it non-interactively. pnpm 10 (vs corepack's default 11)
+# honors pnpm.onlyBuiltDependencies (needed to compile better-sqlite3's native
+# addon) and does not enforce the v11 minimum-release-age supply-chain gate.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml* ./
-# Disable pnpm's minimum-release-age supply-chain gate for this hermetic build:
-# the committed lockfile is already pinned and trusted, and the gate would
-# otherwise reject very recently published (dev-only) deps in CI/server builds.
-RUN pnpm install --frozen-lockfile --config.minimumReleaseAge=0 \
-    || pnpm install --config.minimumReleaseAge=0
+RUN corepack install && pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src ./src
