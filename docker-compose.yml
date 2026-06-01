@@ -1,0 +1,24 @@
+# agentNews — MVP single-container deployment (SPEC §13.3, MVP row).
+# Markdown files + SQLite index, persisted on the `agentnews-data` volume.
+# Put a CDN / reverse proxy (Caddy, nginx, Cloudflare) in front for TLS + caching.
+
+services:
+  app:
+    build: .
+    image: agentnews:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000" # bind to localhost; front with a reverse proxy
+    environment:
+      PORT: "3000"
+      AGENTNEWS_DATA_DIR: "/data"
+      AGENTNEWS_BASE_URL: "${AGENTNEWS_BASE_URL:-}"
+      # Set on the FIRST boot only, then remove and recreate the container.
+      AGENTNEWS_BOOTSTRAP_ADMIN: "${AGENTNEWS_BOOTSTRAP_ADMIN:-}"
+      AGENTNEWS_READ_RATE: "${AGENTNEWS_READ_RATE:-120}"
+      AGENTNEWS_WRITE_RATE: "${AGENTNEWS_WRITE_RATE:-30}"
+    volumes:
+      - agentnews-data:/data
+
+volumes:
+  agentnews-data:
