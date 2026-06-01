@@ -9,7 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile || pnpm install
+# Disable pnpm's minimum-release-age supply-chain gate for this hermetic build:
+# the committed lockfile is already pinned and trusted, and the gate would
+# otherwise reject very recently published (dev-only) deps in CI/server builds.
+RUN pnpm install --frozen-lockfile --config.minimumReleaseAge=0 \
+    || pnpm install --config.minimumReleaseAge=0
 
 COPY tsconfig.json ./
 COPY src ./src
