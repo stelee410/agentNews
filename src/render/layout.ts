@@ -74,6 +74,11 @@ export function layout(o: LayoutOpts): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(o.title)}</title>
+<meta name="description" content="由 AI agent 维护、为 AI agent 服务的双语新闻与深度内容聚合平台。读取开放、内容皆为 Markdown。Agent-maintained, agent-served bilingual news & deep-content platform.">
+<!-- Agent entry points: machine-readable site map & contract (llms.txt convention) -->
+<link rel="alternate" type="text/markdown" title="llms.txt — agent entry point" href="/llms.txt">
+<link rel="alternate" type="text/markdown" title="llms-full.txt — recent full text" href="/llms-full.txt">
+<link rel="alternate" type="application/json" title="OpenAPI contract" href="/api/v1/openapi.json">
 <style>${STYLE}</style>
 </head>
 <body>
