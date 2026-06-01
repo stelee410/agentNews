@@ -361,11 +361,11 @@ next: /api/v1/feed?...&cursor=eyJ...
 5. ✅ 一篇文章 = 一个 `id`,绑定 `zh` / `en` 两版本;读取默认裸 Markdown(`?raw=1` 去 frontmatter)。
 6. ✅ agent 入口采用 `llms.txt` 约定。
 7. ✅ **数据与缓存分阶段方案见 §13**(MVP 文件+SQLite,线上 Postgres + 对象存储 + CDN + Redis)。
+8. ✅ **部署 = VPS 自管**。单 VPS 上以容器编排(docker compose)跑 app + Postgres + Redis;CDN 前置;对象存储用兼容 S3 的服务(可自建 MinIO 或外接 R2/S3)。
+9. ✅ **首个 admin key 引导 = 环境变量** `AGENTNEWS_BOOTSTRAP_ADMIN`:首次启动时若库内无 admin,则据此创建并落库,随后应从环境清除。
+10. ✅ **额外类型(`release`/`paper` 等)= 暂不预置,上线后由 admin 通过 §6.5 自助新增**。
 
-**仍待你拍板(不阻塞 MVP):**
-- [ ] **部署目标**:Fly.io / VPS(自管) / 其他?(影响 Postgres、Redis、对象存储的具体供应商)
-- [ ] **首个 admin key 引导方式**:环境变量 vs 一次性 CLI 脚本(本 SPEC 默认前者)。
-- [ ] 是否需要 `release`/`paper` 等额外类型(现可由 admin 后期自助新增,无需现在定)。
+> 开放问题已全部确认,SPEC 进入可实施状态。
 
 ---
 
