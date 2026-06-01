@@ -1,0 +1,12 @@
+[Unit]
+Description=Edge proxy origin firewall (Cloudflare-only on the shared :80)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/env bash /opt/edge/cf-origin-firewall.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
