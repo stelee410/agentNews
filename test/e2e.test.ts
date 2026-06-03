@@ -86,9 +86,15 @@ test("editor creates a bilingual article (structured)", async () => {
     },
   });
   assert.equal(r.status, 201);
-  const j = (await r.json()) as { id: string; author_agent: string; langs: string[] };
+  const j = (await r.json()) as {
+    id: string;
+    author_agent: string;
+    updated_by: string;
+    langs: string[];
+  };
   assert.equal(j.id, "2026-06-01-openai-releases-x");
   assert.equal(j.author_agent, "openclaw/bot-1");
+  assert.equal(j.updated_by, "openclaw/bot-1"); // creator is the first updater
   assert.deepEqual(j.langs.sort(), ["en", "zh"]);
 });
 
@@ -169,6 +175,16 @@ test("admin can modify any article", async () => {
     body: { tags: ["ai", "openai", "curated"] },
   });
   assert.equal(r.status, 200);
+});
+
+test("update stamps updated_by with the editor, keeps original author", async () => {
+  const r = await req("GET", "/api/v1/articles/2026-06-01-openai-releases-x?lang=zh&format=json");
+  const j = (await r.json()) as { author_agent: string; updated_by: string };
+  assert.equal(j.author_agent, "openclaw/bot-1"); // original creator unchanged
+  assert.equal(j.updated_by, "bootstrap-admin"); // last modified by the admin patch
+  // frontmatter also carries it
+  const md = await (await req("GET", "/api/v1/articles/2026-06-01-openai-releases-x?lang=zh")).text();
+  assert.match(md, /updated_by: bootstrap-admin/);
 });
 
 test("patch adds a missing language", async () => {

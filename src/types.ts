@@ -23,7 +23,8 @@ export interface Article {
   tags: string[];
   sources: string[];
   related: string[];
-  author_agent: string;
+  author_agent: string; // original creator (set once, immutable)
+  updated_by: string; // who last modified it (stamped on every write)
   created_at: string; // ISO-8601 UTC
   updated_at: string; // ISO-8601 UTC
   versions: Partial<Record<Lang, Version>>;
@@ -57,6 +58,7 @@ export interface FeedRow {
   summary: string;
   tags: string[];
   updated_at: string;
+  updated_by: string;
   available_langs: Lang[];
 }
 

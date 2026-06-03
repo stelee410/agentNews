@@ -13,10 +13,11 @@ export function feedToMarkdown(
   }
   const lines = result.rows.map((r: FeedRow) => {
     const tags = r.tags.length ? r.tags.join(", ") : "—";
+    const by = r.updated_by ? ` by ${r.updated_by}` : "";
     return (
       `- [${r.id}] ${r.title}\n` +
       `  - summary: ${r.summary}\n` +
-      `  - updated: ${r.updated_at} · tags: ${tags}\n` +
+      `  - updated: ${r.updated_at}${by} · tags: ${tags}\n` +
       `  - get: /api/v1/articles/${r.id}?lang=${opts.lang}`
     );
   });
@@ -39,6 +40,7 @@ export function feedToJson(result: FeedResult, lang: Lang) {
       summary: r.summary,
       tags: r.tags,
       updated_at: r.updated_at,
+      updated_by: r.updated_by,
       available_langs: r.available_langs,
       get: `/api/v1/articles/${r.id}?lang=${lang}`,
     })),

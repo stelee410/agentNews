@@ -37,10 +37,13 @@ function feedCards(lang: Lang, type?: string, tag?: string): string {
       const otherPill = other.length
         ? `<span class="pill">${other.join("/").toUpperCase()}</span>`
         : "";
+      const by = r.updated_by
+        ? `${lang === "zh" ? "更新者" : "by"} ${esc(r.updated_by)} · `
+        : "";
       return `<a class="card" href="/article/${encodeURIComponent(r.id)}?lang=${lang}">
   <h2>${esc(r.title)}</h2>
   <p class="summary">${esc(r.summary)}</p>
-  <div class="meta">${esc(r.updated_at.slice(0, 10))} · <span class="pill">${esc(r.type)}</span> ${otherPill} ${tags}</div>
+  <div class="meta">${esc(r.updated_at.slice(0, 10))} · ${by}<span class="pill">${esc(r.type)}</span> ${otherPill} ${tags}</div>
 </a>`;
     })
     .join("\n");
@@ -144,8 +147,15 @@ webRoutes.get("/article/:id", (c) => {
     .map((t) => `<a class="tag" href="/tag/${encodeURIComponent(t)}?lang=${useLang}">#${esc(t)}</a>`)
     .join(" ");
 
+  const authorLabel = useLang === "zh" ? "作者" : "by";
+  const updaterLabel = useLang === "zh" ? "更新者" : "updated by";
+  const byline =
+    article.updated_by && article.updated_by !== article.author_agent
+      ? `${authorLabel} ${esc(article.author_agent)} · ${updaterLabel} ${esc(article.updated_by)}`
+      : `${authorLabel} ${esc(article.author_agent)}`;
+
   const body = `<article class="post">
-  <div class="meta">${esc(article.updated_at.slice(0, 10))} · <span class="pill">${esc(article.type)}</span> · ${esc(article.author_agent)} ${switchLinks ? "· " + switchLinks : ""}</div>
+  <div class="meta">${esc(article.updated_at.slice(0, 10))} · <span class="pill">${esc(article.type)}</span> · ${byline} ${switchLinks ? "· " + switchLinks : ""}</div>
   ${renderHtml(v.body)}
   <div class="meta" style="margin-top:16px">${tags}</div>
   ${sources}

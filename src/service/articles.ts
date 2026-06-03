@@ -121,6 +121,7 @@ export function buildArticleFromCreate(body: CreateBody, auth: AuthContext): Art
       sources,
       related,
       author_agent: auth.agentName,
+      updated_by: auth.agentName,
       created_at: now,
       updated_at: now,
       versions,
@@ -151,6 +152,7 @@ export function buildArticleFromCreate(body: CreateBody, auth: AuthContext): Art
       sources: parsed.sources ?? [],
       related: parsed.related ?? [],
       author_agent: auth.agentName,
+      updated_by: auth.agentName,
       created_at: now,
       updated_at: now,
       versions,
@@ -190,7 +192,8 @@ export function replaceArticle(id: string, body: CreateBody, auth: AuthContext):
   const merged: Article = {
     ...draft,
     id, // id is immutable on replace
-    author_agent: owner,
+    author_agent: owner, // creator is preserved
+    updated_by: auth.agentName, // stamp who made this update
     created_at: existing.created_at,
     updated_at: nowIso(),
   };
@@ -237,6 +240,7 @@ export function patchArticle(id: string, body: unknown, auth: AuthContext): Arti
     }
   }
 
+  next.updated_by = auth.agentName; // stamp who made this update
   next.updated_at = nowIso();
   writeArticle(next);
   indexArticle(next);
@@ -254,6 +258,7 @@ export function deleteArticle(id: string, auth: AuthContext, hard = false): void
   const existing = readArticle(id);
   if (!existing) throw notFound(`article '${id}' not found`);
   existing.status = "archived";
+  existing.updated_by = auth.agentName; // stamp who archived it
   existing.updated_at = nowIso();
   writeArticle(existing);
   indexArticle(existing);

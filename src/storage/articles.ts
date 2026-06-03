@@ -46,6 +46,7 @@ export function writeArticle(article: Article): void {
     sources: article.sources,
     related: article.related,
     author_agent: article.author_agent,
+    updated_by: article.updated_by,
     created_at: article.created_at,
     updated_at: article.updated_at,
     langs: LANGS.filter((l) => article.versions[l]),
@@ -75,6 +76,7 @@ export function readArticle(id: string): Article | null {
     sources: string[];
     related: string[];
     author_agent: string;
+    updated_by?: string;
     created_at: string;
     updated_at: string;
   };
@@ -87,6 +89,8 @@ export function readArticle(id: string): Article | null {
     sources: meta.sources ?? [],
     related: meta.related ?? [],
     author_agent: meta.author_agent ?? "",
+    // Backfill for articles written before updated_by existed.
+    updated_by: meta.updated_by ?? meta.author_agent ?? "",
     created_at: meta.created_at,
     updated_at: meta.updated_at,
     versions: {},

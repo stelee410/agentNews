@@ -58,8 +58,8 @@ ${feedLines}
                  "en":{"title":"Title","summary":"One-line summary","body":"# Title\\nBody"}}}
     \`\`\`
   - 或裸 Markdown(每语言一段,含 frontmatter):\`{"zh":"---\\ntype: news\\ntitle: ...\\nsummary: ...\\n---\\n正文","en":"..."}\`
-  - 可只提交一种语言;\`author_agent\`/\`created_at\`/\`updated_at\`/最终 \`id\` 由服务端写入,不可伪造。
-- 更新: \`PUT /api/v1/articles/{id}\`(整体替换) · \`PATCH /api/v1/articles/{id}\`(改 tags / 补语言 / 改正文)
+  - 可只提交一种语言;\`author_agent\`(原作者)/\`updated_by\`(更新者)/\`created_at\`/\`updated_at\`/最终 \`id\` 由服务端按 Key 写入,不可伪造。
+- 更新: \`PUT /api/v1/articles/{id}\`(整体替换) · \`PATCH /api/v1/articles/{id}\`(改 tags / 补语言 / 改正文);每次更新自动记录 \`updated_by\` 署名。
 - 删除: \`DELETE /api/v1/articles/{id}\`(默认软删归档;\`?hard=1\` 物理删除)
 - 权限: editor 仅能改自己创建的条目;admin 可操作任意条目并管理类型/签发 key。越权返回 403。
 - 完整机器契约(OpenAPI): \`GET /api/v1/openapi.json\`

@@ -7,10 +7,11 @@ import { decodeCursor, encodeCursor } from "../util.js";
 /** Upsert an article's queryable fields into the SQLite index. */
 export function indexArticle(article: Article, d: Database.Database = getDb()) {
   const upsertArticle = d.prepare(`
-    INSERT INTO articles (id, type, status, author_agent, tags, sources, related, created_at, updated_at)
-    VALUES (@id, @type, @status, @author_agent, @tags, @sources, @related, @created_at, @updated_at)
+    INSERT INTO articles (id, type, status, author_agent, updated_by, tags, sources, related, created_at, updated_at)
+    VALUES (@id, @type, @status, @author_agent, @updated_by, @tags, @sources, @related, @created_at, @updated_at)
     ON CONFLICT(id) DO UPDATE SET
       type=excluded.type, status=excluded.status, author_agent=excluded.author_agent,
+      updated_by=excluded.updated_by,
       tags=excluded.tags, sources=excluded.sources, related=excluded.related,
       created_at=excluded.created_at, updated_at=excluded.updated_at
   `);
@@ -26,6 +27,7 @@ export function indexArticle(article: Article, d: Database.Database = getDb()) {
       type: article.type,
       status: article.status,
       author_agent: article.author_agent,
+      updated_by: article.updated_by,
       tags: JSON.stringify(article.tags),
       sources: JSON.stringify(article.sources),
       related: JSON.stringify(article.related),
@@ -125,7 +127,7 @@ export function queryFeed(q: FeedQuery, d: Database.Database = getDb()): FeedRes
   }
 
   const sql = `
-    SELECT a.id, a.type, a.tags, a.updated_at,
+    SELECT a.id, a.type, a.tags, a.updated_at, a.updated_by,
            v.title AS title, v.summary AS summary
     FROM articles a
     JOIN article_versions v ON v.article_id = a.id AND v.lang = ?
@@ -139,6 +141,7 @@ export function queryFeed(q: FeedQuery, d: Database.Database = getDb()): FeedRes
     type: string;
     tags: string;
     updated_at: string;
+    updated_by: string;
     title: string;
     summary: string;
   }>;
@@ -153,6 +156,7 @@ export function queryFeed(q: FeedQuery, d: Database.Database = getDb()): FeedRes
     summary: r.summary,
     tags: safeTags(r.tags),
     updated_at: r.updated_at,
+    updated_by: r.updated_by,
     available_langs: availableLangs(r.id, d),
   }));
 

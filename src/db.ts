@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS articles (
   type         TEXT NOT NULL,
   status       TEXT NOT NULL DEFAULT 'published',
   author_agent TEXT NOT NULL DEFAULT '',
+  updated_by   TEXT NOT NULL DEFAULT '',
   tags         TEXT NOT NULL DEFAULT '[]',   -- JSON array
   sources      TEXT NOT NULL DEFAULT '[]',   -- JSON array
   related      TEXT NOT NULL DEFAULT '[]',   -- JSON array
@@ -80,9 +81,13 @@ const DEFAULT_TYPES = [
 
 /** Add columns introduced after the initial schema, for existing databases. */
 function migrate(d: Database.Database) {
-  const cols = d.prepare("PRAGMA table_info(types)").all() as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === "position")) {
+  const typeCols = d.prepare("PRAGMA table_info(types)").all() as Array<{ name: string }>;
+  if (!typeCols.some((c) => c.name === "position")) {
     d.exec("ALTER TABLE types ADD COLUMN position INTEGER NOT NULL DEFAULT 1000");
+  }
+  const artCols = d.prepare("PRAGMA table_info(articles)").all() as Array<{ name: string }>;
+  if (!artCols.some((c) => c.name === "updated_by")) {
+    d.exec("ALTER TABLE articles ADD COLUMN updated_by TEXT NOT NULL DEFAULT ''");
   }
 }
 

@@ -35,6 +35,7 @@ function articleResponse(a: Article) {
     sources: a.sources,
     related: a.related,
     author_agent: a.author_agent,
+    updated_by: a.updated_by,
     created_at: a.created_at,
     updated_at: a.updated_at,
     langs: LANGS.filter((l) => a.versions[l]),
