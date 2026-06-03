@@ -61,12 +61,14 @@ export const createTypeInput = z.object({
     .regex(/^[a-z][a-z0-9-]*$/, "key must be lowercase kebab-case"),
   label_zh: z.string().min(1).max(40),
   label_en: z.string().min(1).max(40),
+  position: z.number().int().min(0).max(100000).optional(),
 });
 
 export const patchTypeInput = z.object({
   label_zh: z.string().min(1).max(40).optional(),
   label_en: z.string().min(1).max(40).optional(),
   enabled: z.boolean().optional(),
+  position: z.number().int().min(0).max(100000).optional(),
 });
 
 /** Admin: issue editor key. */

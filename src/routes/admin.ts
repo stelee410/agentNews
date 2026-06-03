@@ -47,7 +47,13 @@ adminRoutes.post("/types", ...adminGuard, async (c) => {
     zod(e);
   }
   if (getType(input.key)) throw conflict("type_exists", `type '${input.key}' already exists`);
-  createType({ ...input, enabled: true });
+  createType({
+    key: input.key,
+    label_zh: input.label_zh,
+    label_en: input.label_en,
+    enabled: true,
+    position: input.position ?? 1000,
+  });
   audit(getDb(), auth.agentName, "type_create", input.key);
   return c.json({ type: getType(input.key) }, 201);
 });

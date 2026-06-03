@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS types (
   key      TEXT PRIMARY KEY,
   label_zh TEXT NOT NULL,
   label_en TEXT NOT NULL,
-  enabled  INTEGER NOT NULL DEFAULT 1
+  enabled  INTEGER NOT NULL DEFAULT 1,
+  position INTEGER NOT NULL DEFAULT 1000   -- nav/column ordering, ascending
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -77,6 +78,14 @@ const DEFAULT_TYPES = [
   { key: "deepread", label_zh: "深度阅读", label_en: "Deep Read" },
 ];
 
+/** Add columns introduced after the initial schema, for existing databases. */
+function migrate(d: Database.Database) {
+  const cols = d.prepare("PRAGMA table_info(types)").all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "position")) {
+    d.exec("ALTER TABLE types ADD COLUMN position INTEGER NOT NULL DEFAULT 1000");
+  }
+}
+
 export function getDb(): Database.Database {
   if (db) return db;
   fs.mkdirSync(path.dirname(config.dbPath), { recursive: true });
@@ -84,6 +93,7 @@ export function getDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  migrate(db);
   seedDefaultTypes(db);
   return db;
 }

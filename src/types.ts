@@ -35,6 +35,7 @@ export interface ContentType {
   label_zh: string;
   label_en: string;
   enabled: boolean;
+  position: number;
 }
 
 /** API key record (only the hash is stored). */
