@@ -4,7 +4,7 @@ import { esc, layout } from "../render/layout.js";
 import { readArticle } from "../storage/articles.js";
 import { listTypes } from "../storage/content-types.js";
 import { queryFeed } from "../storage/index-db.js";
-import type { Lang } from "../types.js";
+import type { FeedRow, Lang } from "../types.js";
 import { LANGS } from "../types.js";
 
 /**
@@ -18,48 +18,123 @@ function parseLang(c: import("hono").Context): Lang {
   return q === "en" ? "en" : "zh";
 }
 
-function feedCards(lang: Lang, type?: string, tag?: string): string {
+const enc = encodeURIComponent;
+
+/** Map of type key -> display label for the given language. */
+function typeLabels(lang: Lang): Record<string, string> {
+  const m: Record<string, string> = {};
+  for (const t of listTypes(true)) m[t.key] = lang === "zh" ? t.label_zh : t.label_en;
+  return m;
+}
+
+/** Newspaper-style relative time ("x分钟前"); falls back to a date. */
+function relTime(iso: string, lang: Lang): { text: string; fresh: boolean } {
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diffMin < 1) return { text: lang === "zh" ? "刚刚" : "just now", fresh: true };
+  if (diffMin < 60)
+    return { text: lang === "zh" ? `${diffMin}分钟前` : `${diffMin} min ago`, fresh: true };
+  const hr = Math.floor(diffMin / 60);
+  if (hr < 24) return { text: lang === "zh" ? `${hr}小时前` : `${hr} hr ago`, fresh: true };
+  return { text: iso.slice(0, 10), fresh: false };
+}
+
+interface StoryOpts {
+  lang: Lang;
+  labels: Record<string, string>;
+  /** Override the kicker (e.g. author byline on the opinion rail). */
+  kicker?: string;
+  showDek?: boolean;
+}
+
+/** Render one story: kicker · serif headline · dek · timestamp byline. */
+function story(r: FeedRow, o: StoryOpts): string {
+  const kicker = o.kicker ?? o.labels[r.type] ?? r.type;
+  const t = relTime(r.updated_at, o.lang);
+  const ago = t.fresh ? `<span class="ago">${esc(t.text)}</span>` : esc(t.text);
+  const dek = o.showDek === false ? "" : `<p class="dek">${esc(r.summary)}</p>`;
+  return `<article class="story">
+  <div class="kicker">${esc(kicker)}</div>
+  <h3 class="headline"><a href="/article/${enc(r.id)}?lang=${o.lang}">${esc(r.title)}</a></h3>
+  ${dek}
+  <div class="byline">${ago}</div>
+</article>`;
+}
+
+/** Single-column story list (type / tag pages). */
+function storyList(lang: Lang, type?: string, tag?: string): string {
   const result = queryFeed({
     types: type ? [type] : undefined,
     lang,
     tags: tag ? [tag] : undefined,
-    limit: 50,
+    limit: 60,
   });
   if (result.rows.length === 0) {
     return `<p class="empty">${lang === "zh" ? "暂无内容" : "No articles yet."}</p>`;
   }
-  return result.rows
-    .map((r) => {
-      const tags = r.tags
-        .map((t) => `<a class="tag" href="/tag/${encodeURIComponent(t)}?lang=${lang}">#${esc(t)}</a>`)
-        .join(" ");
-      const other = r.available_langs.filter((l) => l !== lang);
-      const otherPill = other.length
-        ? `<span class="pill">${other.join("/").toUpperCase()}</span>`
-        : "";
-      const by = r.updated_by
-        ? `${lang === "zh" ? "更新者" : "by"} ${esc(r.updated_by)} · `
-        : "";
-      return `<a class="card" href="/article/${encodeURIComponent(r.id)}?lang=${lang}">
-  <h2>${esc(r.title)}</h2>
-  <p class="summary">${esc(r.summary)}</p>
-  <div class="meta">${esc(r.updated_at.slice(0, 10))} · ${by}<span class="pill">${esc(r.type)}</span> ${otherPill} ${tags}</div>
-</a>`;
-    })
-    .join("\n");
+  const labels = typeLabels(lang);
+  return `<div class="storylist">${result.rows.map((r) => story(r, { lang, labels })).join("")}</div>`;
 }
 
-// Home: all types
+/** Newspaper front page for the home / 全部 view. */
+function frontPage(lang: Lang): string {
+  const labels = typeLabels(lang);
+  const main = queryFeed({ lang, limit: 24 }).rows;
+  if (main.length === 0) {
+    return `<p class="empty">${lang === "zh" ? "暂无内容" : "No articles yet."}</p>`;
+  }
+  const lead = main[0];
+  const left = main.slice(1, 5);
+  const bullets = main.slice(5, 11);
+
+  // Right rail = latest 视角 (Perspective), like a newspaper opinion column.
+  const rail = queryFeed({ lang, types: ["perspective"], limit: 6 }).rows.filter(
+    (r) => r.id !== lead.id
+  );
+  if (rail.length < 3) {
+    for (const r of main.slice(11)) {
+      if (rail.length >= 5) break;
+      if (!rail.some((x) => x.id === r.id)) rail.push(r);
+    }
+  }
+
+  const leadT = relTime(lead.updated_at, lang);
+  const leadAgo = leadT.fresh ? `<span class="ago">${esc(leadT.text)}</span>` : esc(leadT.text);
+  const leadBy = lead.updated_by
+    ? " · " + (lang === "zh" ? "更新者 " : "by ") + esc(lead.updated_by)
+    : "";
+  const railTitle = lang === "zh" ? "视角 · Perspective" : "Perspective · 视角";
+
+  return `<div class="front">
+  <div class="col left">${left.map((r) => story(r, { lang, labels })).join("")}</div>
+  <div class="col center">
+    <article class="lead">
+      <div class="kicker">${esc(labels[lead.type] ?? lead.type)}</div>
+      <h2 class="headline"><a href="/article/${enc(lead.id)}?lang=${lang}">${esc(lead.title)}</a></h2>
+      <p class="dek">${esc(lead.summary)}</p>
+      <div class="byline">${leadAgo}${leadBy}</div>
+    </article>
+    <ul class="bullets">${bullets
+      .map((r) => `<li><a href="/article/${enc(r.id)}?lang=${lang}">${esc(r.title)}</a></li>`)
+      .join("")}</ul>
+  </div>
+  <aside class="col right">
+    <div class="rail-head">${esc(railTitle)}</div>
+    ${rail.map((r) => story(r, { lang, labels, kicker: r.updated_by || labels[r.type] })).join("")}
+  </aside>
+</div>`;
+}
+
+// Home: newspaper front page (全部)
 webRoutes.get("/", (c) => {
   const lang = parseLang(c);
   const types = listTypes(false);
   return c.html(
     layout({
-      title: "agentNews",
+      title: "agentNews — agent 维护的双语新闻",
       lang,
       types,
       langSwitchPath: "/",
-      body: feedCards(lang),
+      body: frontPage(lang),
     })
   );
 });
@@ -82,14 +157,14 @@ webRoutes.get("/tag/:tag", (c) => {
   const lang = parseLang(c);
   const tag = c.req.param("tag");
   const types = listTypes(false);
-  const heading = `<h1>#${esc(tag)}</h1>`;
+  const heading = `<h1 class="page-title">#${esc(tag)}</h1>`;
   return c.html(
     layout({
       title: `#${tag} — agentNews`,
       lang,
       types,
       langSwitchPath: `/tag/${encodeURIComponent(tag)}`,
-      body: heading + feedCards(lang, undefined, tag),
+      body: heading + storyList(lang, undefined, tag),
     })
   );
 });
@@ -153,11 +228,14 @@ webRoutes.get("/article/:id", (c) => {
     article.updated_by && article.updated_by !== article.author_agent
       ? `${authorLabel} ${esc(article.author_agent)} · ${updaterLabel} ${esc(article.updated_by)}`
       : `${authorLabel} ${esc(article.author_agent)}`;
+  const kicker = typeLabels(useLang)[article.type] ?? article.type;
 
   const body = `<article class="post">
-  <div class="meta">${esc(article.updated_at.slice(0, 10))} · <span class="pill">${esc(article.type)}</span> · ${byline} ${switchLinks ? "· " + switchLinks : ""}</div>
+  <div class="post-kicker">${esc(kicker)}</div>
+  <h1>${esc(v.title)}</h1>
+  <div class="post-meta">${esc(article.updated_at.slice(0, 10))} · ${byline} ${switchLinks ? "· " + switchLinks : ""}</div>
   ${renderHtml(v.body)}
-  <div class="meta" style="margin-top:16px">${tags}</div>
+  <div class="post-meta" style="border:0;margin-top:18px">${tags}</div>
   ${sources}
 </article>`;
 
@@ -198,7 +276,7 @@ webRoutes.get("/:type", (c) => {
       types: listTypes(false),
       activeType: type,
       langSwitchPath: `/${type}`,
-      body: `<h1>${esc(label)}</h1>` + feedCards(lang, type),
+      body: `<h1 class="page-title">${esc(label)}</h1>` + storyList(lang, type),
     })
   );
 });
