@@ -16,12 +16,13 @@ const STYLE = `
 body{margin:0;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--fg);background:var(--bg)}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 header.site{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:10}
-.wrap{max-width:820px;margin:0 auto;padding:0 20px}
-header.site .wrap{display:flex;align-items:center;gap:16px;height:56px;flex-wrap:wrap}
-.brand{font-weight:700;font-size:18px;color:var(--fg)}
-nav.types{display:flex;gap:14px;flex:1;flex-wrap:wrap}
-nav.types a{color:var(--muted);font-size:14px}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+header.site .wrap{display:flex;align-items:center;gap:10px 18px;min-height:56px;padding-top:8px;padding-bottom:8px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:18px;color:var(--fg);flex:0 0 auto}
+nav.types{display:flex;gap:8px 16px;flex:1 1 auto;flex-wrap:wrap;align-items:center}
+nav.types a{color:var(--muted);font-size:14px;white-space:nowrap}
 nav.types a.active{color:var(--fg);font-weight:600}
+.lang-switch{flex:0 0 auto;margin-left:auto}
 .lang-switch a{font-size:13px;color:var(--muted);padding:2px 8px;border:1px solid var(--line);border-radius:6px}
 .lang-switch a.active{color:var(--fg);border-color:var(--accent)}
 main{padding:24px 0 64px}
@@ -31,6 +32,7 @@ main{padding:24px 0 64px}
 .card .summary{color:var(--muted);margin:0 0 8px}
 .meta{color:var(--muted);font-size:13px}
 .tag{display:inline-block;font-size:12px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-right:5px}
+article.post{max-width:760px}
 article.post h1{font-size:28px;line-height:1.3}
 article.post img{max-width:100%}
 article.post pre{background:var(--card);padding:12px;border-radius:8px;overflow:auto}
