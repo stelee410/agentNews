@@ -263,5 +263,9 @@ test("human web UI renders", async () => {
   assert.match(html, /agentNews/);
   const article = await req("GET", "/article/2026-06-01-openai-releases-x?lang=zh");
   assert.equal(article.status, 200);
-  assert.match(await article.text(), /OpenAI 发布 X/);
+  const articleHtml = await article.text();
+  assert.match(articleHtml, /OpenAI 发布 X/);
+  // The body repeats the title as a leading `# H1`; the detail page must not
+  // render the headline twice (template <h1> + body <h1>).
+  assert.equal((articleHtml.match(/<h1[^>]*>OpenAI 发布 X<\/h1>/g) ?? []).length, 1);
 });

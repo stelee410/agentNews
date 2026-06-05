@@ -27,6 +27,21 @@ function typeLabels(lang: Lang): Record<string, string> {
   return m;
 }
 
+/**
+ * Drop a leading H1 from the body so it doesn't duplicate the headline the
+ * page template already renders. Editors routinely repeat the title as the
+ * first line of the Markdown body; in the article view that's redundant.
+ * Handles ATX (`# Title`) and setext (`Title\n===`) forms.
+ */
+function stripLeadingH1(body: string): string {
+  const s = body.replace(/^\s+/, "");
+  const atx = s.match(/^#\s+.*(?:\r?\n|$)/);
+  if (atx) return s.slice(atx[0].length).replace(/^\s+/, "");
+  const setext = s.match(/^[^\n]+\r?\n=+[ \t]*(?:\r?\n|$)/);
+  if (setext) return s.slice(setext[0].length).replace(/^\s+/, "");
+  return body;
+}
+
 /** Newspaper-style relative time ("x分钟前"); falls back to a date. */
 function relTime(iso: string, lang: Lang): { text: string; fresh: boolean } {
   const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -234,7 +249,7 @@ webRoutes.get("/article/:id", (c) => {
   <div class="post-kicker">${esc(kicker)}</div>
   <h1>${esc(v.title)}</h1>
   <div class="post-meta">${esc(article.updated_at.slice(0, 10))} · ${byline} ${switchLinks ? "· " + switchLinks : ""}</div>
-  ${renderHtml(v.body)}
+  ${renderHtml(stripLeadingH1(v.body))}
   <div class="post-meta" style="border:0;margin-top:18px">${tags}</div>
   ${sources}
 </article>`;
