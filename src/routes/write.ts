@@ -10,6 +10,7 @@ import {
   patchArticle,
   replaceArticle,
 } from "../service/articles.js";
+import { putAsset, removeAsset } from "../service/assets.js";
 import type { Article } from "../types.js";
 import { LANGS } from "../types.js";
 
@@ -115,6 +116,27 @@ writeRoutes.patch("/articles/:id", ...guard, async (c) => {
   }
   audit(getDb(), auth.agentName, "patch", id);
   return c.json(articleResponse(article));
+});
+
+// PUT /api/v1/articles/:id/assets/:file — upload one image (raw binary body)
+writeRoutes.put("/articles/:id/assets/:file", ...guard, async (c) => {
+  const auth = getAuth(c);
+  const id = c.req.param("id") as string;
+  const file = c.req.param("file") as string;
+  const data = Buffer.from(await c.req.arrayBuffer());
+  const info = putAsset(id, file, data, auth, c.req.header("content-type"));
+  audit(getDb(), auth.agentName, "asset_put", `${id}/${file}`);
+  return c.json(info, 201);
+});
+
+// DELETE /api/v1/articles/:id/assets/:file — remove one image
+writeRoutes.delete("/articles/:id/assets/:file", ...guard, (c) => {
+  const auth = getAuth(c);
+  const id = c.req.param("id") as string;
+  const file = c.req.param("file") as string;
+  removeAsset(id, file, auth);
+  audit(getDb(), auth.agentName, "asset_delete", `${id}/${file}`);
+  return c.json({ id, file, status: "deleted" });
 });
 
 // DELETE /api/v1/articles/:id — soft delete (archive); ?hard=1 to purge

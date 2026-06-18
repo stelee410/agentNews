@@ -31,10 +31,12 @@ export function articleExists(id: string): boolean {
 /** Persist an article: write meta.json + one .md per present language. */
 export function writeArticle(article: Article): void {
   const dir = articleDir(article.type, article.id);
-  // If the type changed, remove the old directory first.
+  // If the type changed, move (not delete) the old directory so uploaded
+  // assets survive; the md/meta files are rewritten below anyway.
   const existing = findArticleDir(article.id);
   if (existing && path.resolve(existing) !== path.resolve(dir)) {
-    fs.rmSync(existing, { recursive: true, force: true });
+    fs.mkdirSync(path.dirname(dir), { recursive: true });
+    fs.renameSync(existing, dir);
   }
   fs.mkdirSync(dir, { recursive: true });
 

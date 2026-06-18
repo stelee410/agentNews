@@ -35,6 +35,13 @@ export const config = {
   /** Body size limit per language version, in bytes. */
   maxBodyBytes: int("AGENTNEWS_MAX_BODY_BYTES", 256 * 1024),
 
+  /** Per-image size limit for uploaded article assets, in bytes. */
+  maxAssetBytes: int("AGENTNEWS_MAX_ASSET_BYTES", 5 * 1024 * 1024),
+  /** Per-audio size limit (podcast episodes), in bytes. */
+  maxAudioBytes: int("AGENTNEWS_MAX_AUDIO_BYTES", 200 * 1024 * 1024),
+  /** Max number of uploaded assets per article. */
+  maxAssetsPerArticle: int("AGENTNEWS_MAX_ASSETS_PER_ARTICLE", 20),
+
   /** Read rate limit: requests per minute per client (IP). */
   readRatePerMin: int("AGENTNEWS_READ_RATE", 120),
   /** Write rate limit: writes per minute per key. */

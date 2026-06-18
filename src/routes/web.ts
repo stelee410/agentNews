@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { renderHtml } from "../markdown.js";
 import { esc, layout } from "../render/layout.js";
+import { assetList } from "../service/assets.js";
 import { readArticle } from "../storage/articles.js";
 import { listTypes } from "../storage/content-types.js";
 import { queryFeed } from "../storage/index-db.js";
@@ -245,11 +246,33 @@ webRoutes.get("/article/:id", (c) => {
       : `${authorLabel} ${esc(article.author_agent)}`;
   const kicker = typeLabels(useLang)[article.type] ?? article.type;
 
+  // Resolve relative `assets/...` image/link refs against the asset endpoint
+  // (the page lives at /article/{id}, so relative paths would 404).
+  const bodyMd = stripLeadingH1(v.body).replace(
+    /\]\((?:\.\/)?assets\//g,
+    `](/api/v1/articles/${enc(id)}/assets/`
+  );
+
+  // Audio assets get a native player at the top of the post (podcast episodes).
+  const audio = assetList(id).filter((a) => a.kind === "audio");
+  const player = audio.length
+    ? `<div class="player">` +
+      audio
+        .map(
+          (a) =>
+            `<audio controls preload="metadata" src="${esc(a.url)}"></audio>` +
+            `<div class="player-file"><a href="${esc(a.url)}" download>${esc(a.file)}</a></div>`
+        )
+        .join("") +
+      `</div>`
+    : "";
+
   const body = `<article class="post">
   <div class="post-kicker">${esc(kicker)}</div>
   <h1>${esc(v.title)}</h1>
   <div class="post-meta">${esc(article.updated_at.slice(0, 10))} · ${byline} ${switchLinks ? "· " + switchLinks : ""}</div>
-  ${renderHtml(stripLeadingH1(v.body))}
+  ${player}
+  ${renderHtml(bodyMd)}
   <div class="post-meta" style="border:0;margin-top:18px">${tags}</div>
   ${sources}
 </article>`;

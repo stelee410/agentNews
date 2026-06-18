@@ -40,6 +40,12 @@ export function etagOf(content: string): string {
   return `W/"${sha256(content).slice(0, 32)}"`;
 }
 
+/** Weak ETag from binary content (uploaded assets). */
+export function etagOfBytes(content: Buffer): string {
+  const hex = crypto.createHash("sha256").update(content).digest("hex");
+  return `W/"${hex.slice(0, 32)}"`;
+}
+
 /** Base64url encode/decode for cursors. */
 export function encodeCursor(obj: unknown): string {
   return Buffer.from(JSON.stringify(obj), "utf8").toString("base64url");

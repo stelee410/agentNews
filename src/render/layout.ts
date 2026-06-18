@@ -81,6 +81,10 @@ article.post h1{font-family:var(--serif);font-weight:700;font-size:32px;line-hei
 article.post .post-meta{color:var(--muted);font-size:13px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:8px}
 article.post p{line-height:1.75}
 article.post img{max-width:100%}
+.player{margin:18px 0 8px}
+.player audio{width:100%;display:block}
+.player-file{font-size:12px;color:var(--muted);margin:6px 0 14px}
+.player-file a{color:var(--accent)}
 article.post pre{background:rgba(127,127,127,.08);padding:12px;border-radius:6px;overflow:auto}
 article.post code{background:rgba(127,127,127,.08);padding:2px 5px;border-radius:4px}
 article.post pre code{background:none;padding:0}

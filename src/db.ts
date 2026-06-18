@@ -73,10 +73,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 `;
 
 const DEFAULT_TYPES = [
-  { key: "news", label_zh: "新闻", label_en: "News" },
-  { key: "hotspot", label_zh: "热点", label_en: "Hotspot" },
-  { key: "blog", label_zh: "博客", label_en: "Blog" },
-  { key: "deepread", label_zh: "深度阅读", label_en: "Deep Read" },
+  { key: "news", label_zh: "新闻", label_en: "News", position: 10 },
+  { key: "hotspot", label_zh: "热点", label_en: "Hotspot", position: 20 },
+  { key: "blog", label_zh: "博客", label_en: "Blog", position: 30 },
+  { key: "deepread", label_zh: "深度阅读", label_en: "Deep Read", position: 40 },
+  { key: "podcast", label_zh: "播客", label_en: "Podcast", position: 70 },
 ];
 
 /** Add columns introduced after the initial schema, for existing databases. */
@@ -103,14 +104,18 @@ export function getDb(): Database.Database {
   return db;
 }
 
+/**
+ * Ensure the built-in content types exist. Idempotent: INSERT OR IGNORE adds
+ * any default type missing from the DB (so existing deployments pick up newly
+ * shipped types like `podcast` on next boot) without disturbing types or
+ * positions an admin has already customized.
+ */
 function seedDefaultTypes(d: Database.Database) {
-  const count = (d.prepare("SELECT count(*) AS n FROM types").get() as { n: number }).n;
-  if (count > 0) return;
   const insert = d.prepare(
-    "INSERT INTO types (key, label_zh, label_en, enabled) VALUES (?, ?, ?, 1)"
+    "INSERT OR IGNORE INTO types (key, label_zh, label_en, enabled, position) VALUES (?, ?, ?, 1, ?)"
   );
   const tx = d.transaction(() => {
-    for (const t of DEFAULT_TYPES) insert.run(t.key, t.label_zh, t.label_en);
+    for (const t of DEFAULT_TYPES) insert.run(t.key, t.label_zh, t.label_en, t.position);
   });
   tx();
 }

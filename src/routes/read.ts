@@ -3,11 +3,13 @@ import { config } from "../config.js";
 import { notFound } from "../errors.js";
 import { toMarkdown, versionJson } from "../markdown.js";
 import { feedToJson, feedToMarkdown } from "../render/feed-md.js";
+import { assetList } from "../service/assets.js";
 import { readArticle } from "../storage/articles.js";
-import { queryFeed, recentIds } from "../storage/index-db.js";
+import { assetMime, readAsset } from "../storage/assets.js";
+import { indexedArticleMeta, queryFeed, recentIds } from "../storage/index-db.js";
 import type { Lang } from "../types.js";
 import { LANGS } from "../types.js";
-import { etagOf, parseList } from "../util.js";
+import { etagOf, etagOfBytes, parseList } from "../util.js";
 
 /**
  * Open read API (no key). Defaults to bare Markdown to minimize downstream
@@ -100,6 +102,43 @@ function loadVersion(id: string, lang: Lang) {
   }
   return { article, missing: false } as const;
 }
+
+/** 404 unless the article exists and is not archived (mirrors loadVersion). */
+function assertVisible(id: string): void {
+  const meta = indexedArticleMeta(id);
+  if (!meta || meta.status === "archived") {
+    throw notFound(`article '${id}' not found`);
+  }
+}
+
+// GET /api/v1/articles/:id/assets — list uploaded image assets (open).
+// Registered before the :file alias so the static 'assets' segment wins.
+readRoutes.get("/articles/:id/assets", (c) => {
+  const id = c.req.param("id");
+  assertVisible(id);
+  const assets = assetList(id);
+  const json = { id, assets };
+  const etag = etagOf(JSON.stringify(json));
+  if (notModified(c, etag)) return c.body(null, 304);
+  cacheHeaders(c, etag);
+  return c.json(json);
+});
+
+// GET /api/v1/articles/:id/assets/:file — serve one uploaded image (open)
+readRoutes.get("/articles/:id/assets/:file", (c) => {
+  const id = c.req.param("id");
+  const file = c.req.param("file");
+  assertVisible(id);
+  const mime = assetMime(file);
+  const buf = mime ? readAsset(id, file) : null;
+  if (!buf) throw notFound(`asset '${file}' not found on article '${id}'`);
+  const etag = etagOfBytes(buf);
+  if (notModified(c, etag)) return c.body(null, 304);
+  cacheHeaders(c, etag);
+  c.header("Content-Type", mime as string);
+  c.header("X-Content-Type-Options", "nosniff");
+  return c.body(new Uint8Array(buf));
+});
 
 // GET /api/v1/articles/:id/:file  (convenience aliases zh.md / en.md)
 readRoutes.get("/articles/:id/:file", (c) => {

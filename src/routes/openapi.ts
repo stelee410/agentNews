@@ -88,6 +88,52 @@ function spec(serverUrl: string) {
           responses: { "201": { description: "created" }, "409": { description: "id conflict" } },
         },
       },
+      "/api/v1/articles/{id}/assets": {
+        get: {
+          summary: "List uploaded assets (images + audio) of an article (open)",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          responses: { "200": { description: "asset list (json)" }, "404": { description: "article not found" } },
+        },
+      },
+      "/api/v1/articles/{id}/assets/{file}": {
+        get: {
+          summary: "Serve one uploaded image (open)",
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            { name: "file", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: { "200": { description: "image bytes" }, "404": { description: "not found" } },
+        },
+        put: {
+          summary: "Upload one image or audio asset (raw binary body). Images: png/jpg/jpeg/webp/gif/avif (≤5MB). Audio (podcast): mp3/m4a/aac/ogg/opus/wav/flac (≤200MB).",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            { name: "file", in: "path", required: true, schema: { type: "string" }, description: "filename incl. extension, e.g. cover.png or episode-01.mp3" },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "image/*": { schema: { type: "string", format: "binary" } },
+              "audio/*": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          responses: {
+            "201": { description: "stored; returns {file, bytes, content_type, url}" },
+            "400": { description: "bad filename / type / size / quota" },
+            "403": { description: "forbidden (not owner)" },
+          },
+        },
+        delete: {
+          summary: "Delete one uploaded image",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            { name: "file", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: { "200": { description: "deleted" }, "404": { description: "not found" } },
+        },
+      },
       "/api/v1/types": {
         get: { summary: "List content types (open)", responses: { "200": { description: "ok" } } },
         post: {

@@ -51,7 +51,7 @@ test("types are seeded and open to read", async () => {
   assert.equal(r.status, 200);
   const j = (await r.json()) as { types: { key: string }[] };
   const keys = j.types.map((t) => t.key).sort();
-  assert.deepEqual(keys, ["blog", "deepread", "hotspot", "news"]);
+  assert.deepEqual(keys, ["blog", "deepread", "hotspot", "news", "podcast"]);
 });
 
 test("write requires a key", async () => {
@@ -253,6 +253,135 @@ test("raw markdown create form", async () => {
   const j = (await r.json()) as { id: string; type: string };
   assert.equal(j.type, "blog");
   assert.match(j.id, /原始md|untitled|\d{4}-\d{2}-\d{2}/);
+});
+
+test("image assets: upload, list, serve, delete", async () => {
+  // Minimal valid-enough PNG bytes (magic header + padding).
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const putAsset = (file: string, key?: string, body: Buffer = png, ct = "image/png") =>
+    app.fetch(
+      new Request(`http://test.local/api/v1/articles/2026-06-01-openai-releases-x/assets/${file}`, {
+        method: "PUT",
+        headers: { ...(key ? { authorization: `Bearer ${key}` } : {}), "content-type": ct },
+        body: new Uint8Array(body),
+      })
+    );
+
+  // no key → 401; non-owner editor → 403
+  assert.equal((await putAsset("cover.png")).status, 401);
+  const other = await req("POST", "/api/v1/keys", { key: ADMIN, body: { agent_name: "other/asset-bot" } });
+  const otherKey = ((await other.json()) as { key: string }).key;
+  assert.equal((await putAsset("cover.png", otherKey)).status, 403);
+
+  // bad extension / bad name → 400
+  assert.equal((await putAsset("evil.svg", editorKey)).status, 400);
+  assert.equal((await putAsset("..%2Fescape.png", editorKey)).status, 400);
+
+  // owner upload → 201 with canonical URL
+  const up = await putAsset("cover.png", editorKey);
+  assert.equal(up.status, 201);
+  const info = (await up.json()) as { url: string; bytes: number; content_type: string };
+  assert.equal(info.content_type, "image/png");
+  assert.equal(info.bytes, png.length);
+  assert.match(info.url, /\/assets\/cover\.png$/);
+
+  // open list + open serve with correct headers
+  const list = await req("GET", "/api/v1/articles/2026-06-01-openai-releases-x/assets");
+  assert.equal(list.status, 200);
+  const lj = (await list.json()) as { assets: { file: string }[] };
+  assert.deepEqual(lj.assets.map((a) => a.file), ["cover.png"]);
+
+  const got = await req("GET", "/api/v1/articles/2026-06-01-openai-releases-x/assets/cover.png");
+  assert.equal(got.status, 200);
+  assert.equal(got.headers.get("content-type"), "image/png");
+  assert.ok(got.headers.get("etag"));
+  assert.equal(Buffer.compare(Buffer.from(await got.arrayBuffer()), png), 0);
+
+  // web article page rewrites relative assets/ refs to the asset endpoint
+  await req("PATCH", "/api/v1/articles/2026-06-01-openai-releases-x", {
+    key: editorKey,
+    body: { versions: { zh: { body: "正文内容。\n\n![配图](assets/cover.png)" } } },
+  });
+  const page = await req("GET", "/article/2026-06-01-openai-releases-x?lang=zh");
+  const pageHtml = await page.text();
+  assert.match(pageHtml, /<img src="\/api\/v1\/articles\/2026-06-01-openai-releases-x\/assets\/cover\.png"/);
+
+  // delete (owner) → gone for readers
+  const del = await req("DELETE", "/api/v1/articles/2026-06-01-openai-releases-x/assets/cover.png", {
+    key: editorKey,
+  });
+  assert.equal(del.status, 200);
+  const gone = await req("GET", "/api/v1/articles/2026-06-01-openai-releases-x/assets/cover.png");
+  assert.equal(gone.status, 404);
+});
+
+test("assets survive a type change", async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  await app.fetch(
+    new Request("http://test.local/api/v1/articles/2026-06-01-openai-releases-x/assets/keep.png", {
+      method: "PUT",
+      headers: { authorization: `Bearer ${editorKey}`, "content-type": "image/png" },
+      body: new Uint8Array(png),
+    })
+  );
+  // moving the article to another type must carry assets/ along
+  const r = await req("PATCH", "/api/v1/articles/2026-06-01-openai-releases-x", {
+    key: ADMIN,
+    body: { type: "news" },
+  });
+  assert.equal(r.status, 200);
+  const got = await req("GET", "/api/v1/articles/2026-06-01-openai-releases-x/assets/keep.png");
+  assert.equal(got.status, 200);
+});
+
+test("podcast: create episode, upload audio, web renders a player", async () => {
+  // 1) create a podcast-type article (the episode + show notes)
+  const create = await req("POST", "/api/v1/articles", {
+    key: editorKey,
+    body: {
+      id: "2026-06-09-ep-1",
+      type: "podcast",
+      tags: ["ai", "weekly"],
+      versions: { zh: { title: "第 1 期:AI 周报", summary: "本周要闻", body: "# 第 1 期\n\nShow notes 内容。" } },
+    },
+  });
+  assert.equal(create.status, 201);
+
+  // 2) upload the audio episode
+  const mp3 = Buffer.from([0x49, 0x44, 0x33, 0x03, 0, 0, 0, 0, 0, 0]); // "ID3" header
+  const up = await app.fetch(
+    new Request("http://test.local/api/v1/articles/2026-06-09-ep-1/assets/episode-01.mp3", {
+      method: "PUT",
+      headers: { authorization: `Bearer ${editorKey}`, "content-type": "audio/mpeg" },
+      body: new Uint8Array(mp3),
+    })
+  );
+  assert.equal(up.status, 201);
+  const info = (await up.json()) as { kind: string; content_type: string };
+  assert.equal(info.kind, "audio");
+  assert.equal(info.content_type, "audio/mpeg");
+
+  // mismatched Content-Type (image header on an audio name) is rejected
+  const bad = await app.fetch(
+    new Request("http://test.local/api/v1/articles/2026-06-09-ep-1/assets/x.mp3", {
+      method: "PUT",
+      headers: { authorization: `Bearer ${editorKey}`, "content-type": "image/png" },
+      body: new Uint8Array(mp3),
+    })
+  );
+  assert.equal(bad.status, 400);
+
+  // 3) list marks it as audio; serve returns the audio mime
+  const list = (await (await req("GET", "/api/v1/articles/2026-06-09-ep-1/assets")).json()) as {
+    assets: { file: string; kind: string }[];
+  };
+  assert.deepEqual(list.assets, [{ file: "episode-01.mp3", kind: "audio", bytes: mp3.length, content_type: "audio/mpeg", url: "/api/v1/articles/2026-06-09-ep-1/assets/episode-01.mp3" }]);
+  const served = await req("GET", "/api/v1/articles/2026-06-09-ep-1/assets/episode-01.mp3");
+  assert.equal(served.headers.get("content-type"), "audio/mpeg");
+
+  // 4) web detail page renders an <audio> player
+  const page = await (await req("GET", "/article/2026-06-09-ep-1?lang=zh")).text();
+  assert.match(page, /<audio controls[^>]*src="\/api\/v1\/articles\/2026-06-09-ep-1\/assets\/episode-01\.mp3"/);
 });
 
 test("human web UI renders", async () => {

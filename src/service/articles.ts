@@ -173,7 +173,7 @@ export function createArticle(body: CreateBody, auth: AuthContext): Article {
 }
 
 /** Ownership / role check for mutating an existing article. */
-function assertCanMutate(id: string, auth: AuthContext): string {
+export function assertCanMutate(id: string, auth: AuthContext): string {
   const meta = indexedArticleMeta(id);
   if (!meta) throw notFound(`article '${id}' not found`);
   if (auth.role !== "admin" && meta.author_agent !== auth.agentName) {
